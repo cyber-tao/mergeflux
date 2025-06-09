@@ -1,6 +1,6 @@
-# MergeFlux: Advanced FLUX Safetensors Model Merging
+# mergeflux: Advanced FLUX Safetensors Model Merging
 
-MergeFlux is a powerful and memory-efficient Python script for merging multiple FLUX `safetensors` models. It goes beyond simple weighted averaging by providing granular control over the merge ratios at the block level, allowing for smooth, interpolated transitions between different models.
+mergeflux is a powerful and memory-efficient Python script for merging multiple FLUX `safetensors` models. It goes beyond simple weighted averaging by providing granular control over the merge ratios at the block level, allowing for smooth, interpolated transitions between different models.
 
 This tool is ideal for machine learning practitioners who want to combine the strengths of several FLUX models. For example, blending the initial layers of a base model with the final layers of a specialized, fine-tuned model.
 
@@ -34,7 +34,7 @@ Or place the script in a folder in the InvokeAI installation.  Open the InvokeAI
 The script is run from the command line. At its most basic, you provide two or more models and an output path.
 
 ```bash
-python MergeFlux.py --models model_A.safetensors model_B.safetensors --output merged_model.safetensors [OPTIONS]
+python mergeflux.py --models model_A.safetensors model_B.safetensors --output merged_model.safetensors [OPTIONS]
 ```
 
 ### Command-Line Arguments
@@ -61,7 +61,7 @@ python MergeFlux.py --models model_A.safetensors model_B.safetensors --output me
 This command merges two models with equal weight for all tensors.
 
 ```bash
-python MergeFlux.py \
+python mergeflux.py \
   --models model_A.safetensors model_B.safetensors \
   --output merged_50-50.safetensors
 ```
@@ -73,7 +73,7 @@ python MergeFlux.py \
 Merge three models, giving 60% weight to Model A, 20% to B, and 20% to C.
 
 ```bash
-python MergeFlux.py \
+python mergeflux.py \
   --models model_A.safetensors model_B.safetensors model_C.safetensors \
   --output merged_custom_base.safetensors \
   --base_ratios 0.6 0.2 0.2
@@ -91,7 +91,7 @@ This example creates a merge that starts as 100% Model A and ends as 100% Model 
 - All non-block tensors (e.g., token embeddings) will be a 50/50 mix (`--base_ratios`).
 
 ```bash
-python MergeFlux.py \
+python mergeflux.py \
   --models model_A.safetensors model_B.safetensors \
   --output merged_A-to-B.safetensors \
   --base_ratios 0.5 0.5 \
