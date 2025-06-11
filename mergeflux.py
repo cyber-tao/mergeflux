@@ -19,6 +19,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# --- Constants ---
+MODEL_DIFFUSION_PREFIX = "model.diffusion_model."
+BLOCK_NUMBER_REGEX = re.compile(r"(single_blocks|double_blocks)\.(\d+)\.")
+
 
 def get_block_number(key: str) -> Optional[int]:
     """
@@ -26,7 +30,7 @@ def get_block_number(key: str) -> Optional[int]:
     Returns None if the key is not part of a numbered block.
     """
     # Regex to find 'single_blocks.XX.' or 'double_blocks.XX.'
-    match = re.search(r"(single_blocks|double_blocks)\.(\d+)\.", key)
+    match = BLOCK_NUMBER_REGEX.search(key)
     if match:
         return int(match.group(2))
     return None
@@ -67,10 +71,9 @@ def get_canonical_key(original_key: str) -> str:
     """
     Transforms a model's tensor key into a standardized, canonical format.
     """
-    key = original_key
-    if key.startswith("model.diffusion_model."):
-        key = key.removeprefix("model.diffusion_model.")
-    return key
+    if original_key.startswith(MODEL_DIFFUSION_PREFIX):
+        return original_key.removeprefix(MODEL_DIFFUSION_PREFIX)
+    return original_key
 
 
 def merge_models(args: argparse.Namespace) -> None:
@@ -283,14 +286,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--precision",
         type=str,
-        default="fp16",
+        default="float",
         choices=["float", "fp16", "bf16"],
         help="Calculation precision during merge.",
     )
     parser.add_argument(
         "--saving_precision",
         type=str,
-        default="fp16",
+        default="bf16",
         choices=["float", "fp16", "bf16"],
         help="Precision for saving the final model.",
     )

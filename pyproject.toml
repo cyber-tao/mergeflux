@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mergeflux" # You can change this to your project's name
+version = "0.1.0"  # You can change this to your project's version
+description = "A short description of your project." # Add a description
+readme = "README.md" # Optional: if you have a README.md
+requires-python = ">=3.8" # Specify your Python version requirement
+dependencies = [
+    "torch",
+    "safetensors",
+    "tqdm",
+]
+
+[tool.ruff]
+line-length = 120
+# Select a common set of useful lint rules:
+# E: pycodestyle errors
+# F: Pyflakes (e.g., undefined names, unused imports)
+# I: isort (import sorting)
+select = ["E", "F", "I"]
+
+target-version = "py38" # Align Ruff's linting with your project's Python version
