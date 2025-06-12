@@ -57,7 +57,7 @@ python mergeflux.py --models model_A.safetensors model_B.safetensors --output me
 This script is for advanced merging based on task arithmetic (model differences).
 
 ```bash
-python mergeflux-delta.py --base_model base.safetensors --models_to_merge model_A.safetensors --output merged_delta.safetensors [OPTIONS]
+python mergeflux-delta.py --base_model base.safetensors --models model_A.safetensors --output merged_delta.safetensors [OPTIONS]
 ```
 
 #### `mergeflux-delta.py` Arguments
@@ -65,12 +65,12 @@ python mergeflux-delta.py --base_model base.safetensors --models_to_merge model_
 | Argument | Type | Description | Required |
 |---|---|---|---|
 | `--base_model` | `str` | Path to the base model. | **Yes** |
-| `--models_to_merge` | `str` (list) | Path(s) to the models to merge into the base. | **Yes** |
+| `--models` | `str` (list) | Path(s) to the models to merge into the base. | **Yes** |
 | `--output` | `str` | Path for the output merged model. | **Yes** |
 | `--prune_method` | `str` | Pruning method for deltas (`none`, `magnitude`, `random`). | No |
 | `--merge_method` | `str` | Method for combining deltas (`sum`, `mean`, `disjoint_merge`).| No |
 | `--density` | `float` | Fraction of parameters to keep for 'magnitude' or 'random' pruning. | No |
-| `--task_weights` | `float` (list)| Weights for each model in `--models_to_merge`. | No |
+| `--task_weights` | `float` (list)| Weights for each model in `--models`. | No |
 | `--majority_sign_method` | `str` | Sign agreement for 'disjoint_merge' (`total` or `frequency`). | No |
 | `--device` | `str` | Device for calculations (`cpu` or `cuda`). | No |
 | `--precision` | `str` | Calculation precision (`float`, `fp16`, `bf16`). | No |
@@ -123,7 +123,7 @@ This method resolves conflicting changes between models by pruning less signific
 # To replicate TIES use:
 python mergeflux-delta.py \
   --base_model base_model.safetensors \
-  --models_to_merge fine-tuned_A.safetensors fine-tuned_B.safetensors \
+  --models fine-tuned_A.safetensors fine-tuned_B.safetensors \
   --output ties_merged.safetensors \
   --prune_method magnitude \
   --merge_method disjoint_merge \
@@ -138,7 +138,7 @@ This method randomly prunes the model deltas and then simply adds them together,
 # To replicate DARE_LINEAR use:
 python mergeflux-delta.py \
   --base_model base_model.safetensors \
-  --models_to_merge fine-tuned_A.safetensors fine-tuned_B.safetensors \
+  --models fine-tuned_A.safetensors fine-tuned_B.safetensors \
   --output dare_linear_merged.safetensors \
   --prune_method random \
   --merge_method sum \
@@ -163,7 +163,7 @@ The script operates in three main phases:
 
 This script uses task arithmetic to perform the merge:
 
-1.  **Delta Calculation**: For each tensor, it calculates the "delta" or difference between the fine-tuned models (`--models_to_merge`) and the `--base_model`. This delta represents the changes introduced during fine-tuning.
+1.  **Delta Calculation**: For each tensor, it calculates the "delta" or difference between the fine-tuned models (`--models`) and the `--base_model`. This delta represents the changes introduced during fine-tuning.
 
 2.  **Modular Merging**: It processes these deltas using a combination of a pruning and a merging function:
     * **Pruning**: Each delta is pruned according to the `--prune_method`.

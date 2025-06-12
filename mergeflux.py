@@ -281,7 +281,7 @@ if __name__ == "__main__":
         "--end_block", type=int, help="Block number to end the ratio transition. Defaults to the last detected block."
     )
     parser.add_argument(
-        "--device", type=str, default="cpu", choices=["cpu", "cuda"], help="Device for tensor calculations."
+        "--device", type=str, default="cuda", choices=["cpu", "cuda"], help="Device for tensor calculations."
     )
     parser.add_argument(
         "--precision",

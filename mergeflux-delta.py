@@ -167,24 +167,24 @@ def merge_models(args: argparse.Namespace) -> None:
     logger.info(f"Using device: {args.device} for tensor calculations.")
     logger.info(f"Prune Method: {args.prune_method} | Merge Method: {args.merge_method}")
 
-    all_model_paths = [args.base_model] + args.models_to_merge
+    all_model_paths = [args.base_model] + args.models
 
     for model_path in all_model_paths:
         if not os.path.isfile(model_path):
             logger.error(f"Model file not found: {model_path}")
             return
 
-    num_models_to_merge = len(args.models_to_merge)
+    num_models = len(args.models)
 
-    if args.task_weights and len(args.task_weights) != num_models_to_merge:
+    if args.task_weights and len(args.task_weights) != num_models:
         raise ValueError(
-            f"Number of task weights ({len(args.task_weights)}) must match number of models to merge ({num_models_to_merge})."
+            f"Number of task weights ({len(args.task_weights)}) must match number of models to merge ({num_models})."
         )
 
-    task_weights = torch.tensor(args.task_weights or [1.0] * num_models_to_merge, dtype=dtype, device=args.device)
+    task_weights = torch.tensor(args.task_weights or [1.0] * num_models, dtype=dtype, device=args.device)
 
     logger.info(f"Base Model: {args.base_model}")
-    logger.info(f"Models to Merge: {args.models_to_merge}")
+    logger.info(f"Models to Merge: {args.models}")
     logger.info(f"Task Weights: {task_weights.tolist()}")
 
     logger.info("Scanning and standardizing model keys...")
@@ -215,13 +215,14 @@ def merge_models(args: argparse.Namespace) -> None:
                         logger.debug("  - Skipping key as it is not found in base model.")
                         continue
 
-                    base_tensor = open_files[0].get_tensor(base_original_key).to(device=args.device, dtype=dtype)
+                    base_tensor = open_files[0].get_tensor(base_original_key).to(dtype=dtype)
+                    base_tensor = base_tensor.to(args.device, non_blocking=True)
                     logger.debug(
                         f"  - Base tensor loaded. Shape: {base_tensor.shape}, Norm: {torch.linalg.norm(base_tensor.to(torch.float32)).item():.4f}"
                     )
 
                     deltas = []
-                    for i in range(num_models_to_merge):
+                    for i in range(num_models):
                         model_index = i + 1
                         model_map = model_key_maps[model_index]
 
@@ -249,7 +250,9 @@ def merge_models(args: argparse.Namespace) -> None:
                     logger.debug(f"Merged delta norm: {torch.linalg.norm(merged_delta.to(torch.float32)).item():.4f}")
                     logger.debug(f"Final tensor norm: {torch.linalg.norm(final_tensor.to(torch.float32)).item():.4f}")
 
-                    merged_state_dict[key] = final_tensor.to(save_dtype)
+                    merged_state_dict[key] = final_tensor.to("cpu", save_dtype)
+                    del base_tensor, deltas, merged_delta, final_tensor
+                    torch.cuda.empty_cache()
 
         logger.info("Merge completed successfully.")
     except Exception as e:
@@ -265,7 +268,7 @@ def merge_models(args: argparse.Namespace) -> None:
         logger.info("Applying merge parameters to file metadata.")
         metadata = {
             "base_model": args.base_model,
-            "merged_models": json.dumps(args.models_to_merge),
+            "merged_models": json.dumps(args.models),
             "task_weights": json.dumps(task_weights.tolist()),
             "prune_method": args.prune_method,
             "merge_method": args.merge_method,
@@ -307,7 +310,7 @@ This script uses a modular approach ties and dare merging, as a base guide you c
 
     parser.add_argument("--base_model", type=str, required=True, help="Path to the base model.")
     parser.add_argument(
-        "--models_to_merge", type=str, nargs="+", required=True, help="Path(s) to the models to merge into the base."
+        "--models", type=str, nargs="+", required=True, help="Path(s) to the models to merge into the base."
     )
     parser.add_argument("--output", type=str, required=True, help="Path for the output merged model.")
 
@@ -336,7 +339,7 @@ This script uses a modular approach ties and dare merging, as a base guide you c
         "--task_weights",
         type=float,
         nargs="+",
-        help="Weights for each model in --models_to_merge. Defaults to 1.0 each.",
+        help="Weights for each model in --models. Defaults to 1.0 each.",
     )
     merge_group.add_argument(
         "--majority_sign_method",
@@ -347,8 +350,14 @@ This script uses a modular approach ties and dare merging, as a base guide you c
     )
 
     tech_group = parser.add_argument_group("Technical Settings")
-    tech_group.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"])
-    tech_group.add_argument("--precision", type=str, default="float", choices=["float", "fp16", "bf16"])
+    tech_group.add_argument("--device", type=str, default="cuda", choices=["cpu", "cuda"])
+    tech_group.add_argument(
+        "--precision",
+        type=str,
+        default="float",
+        choices=["float", "fp16", "bf16"],
+        help="Calculation precision during merge.",
+    )
     tech_group.add_argument("--saving_precision", type=str, default="bf16", choices=["float", "fp16", "bf16"])
     tech_group.add_argument("-v", "--verbose", action="store_true", help="Enable verbose (DEBUG) logging.")
     tech_group.add_argument(
