@@ -83,14 +83,39 @@ def merge_models(args: argparse.Namespace) -> None:
     """
 
     # --- Initial Validation ---
-    precision_map = {"fp16": torch.float16, "bf16": torch.bfloat16, "float": torch.float32}
+    precision_map = {
+        "fp16": torch.float16,
+        "bf16": torch.bfloat16,
+        "float": torch.float32,
+        "fp8_e4m3": torch.float8_e4m3fn,
+        "fp8_e5m2": torch.float8_e5m2,
+    }
     dtype = precision_map[args.precision]
     save_dtype = precision_map[args.saving_precision]
+
+    # FP8 requires special handling - we compute in float32 and convert to FP8 only for saving
+    is_fp8_computation = args.precision in ["fp8_e4m3", "fp8_e5m2"]
+    is_fp8_save = args.saving_precision in ["fp8_e4m3", "fp8_e5m2"]
+    
+    if is_fp8_computation:
+        logger.warning(
+            f"FP8 computation precision '{args.precision}' detected. "
+            "Will use float32 for calculations and convert to FP8 format."
+        )
+        compute_dtype = torch.float32
+    else:
+        compute_dtype = dtype
+
+    if is_fp8_save and args.device == "cpu":
+        logger.error("FP8 precision requires CUDA device. CPU does not support FP8 operations.")
+        return
 
     if args.device == "cuda" and not torch.cuda.is_available():
         logger.error("CUDA device requested, but CUDA is not available.")
         return
     logger.info(f"Using device: {args.device} for tensor calculations.")
+    logger.info(f"Computation precision: {args.precision} (actual: {compute_dtype})")
+    logger.info(f"Saving precision: {args.saving_precision}")
 
     for model_path in args.models:
         if not os.path.isfile(model_path):
@@ -207,14 +232,14 @@ def merge_models(args: argparse.Namespace) -> None:
                         first_task, other_tasks = plan["sources"][0], plan["sources"][1:]
 
                         model_handle = open_files[first_task["model_index"]]
-                        accumulator = model_handle.get_tensor(first_task["original_key"]).to(dtype)
+                        accumulator = model_handle.get_tensor(first_task["original_key"]).to(compute_dtype)
                         accumulator.mul_(first_task["ratio"])  # In-place multiplication
 
                         # Subsequent tensors are added in-place using a fused add-multiply operation.
                         for task in other_tasks:
                             model_handle = open_files[task["model_index"]]
                             tensor = model_handle.get_tensor(task["original_key"])
-                            torch.add(accumulator, tensor.to(dtype), alpha=task["ratio"], out=accumulator)
+                            torch.add(accumulator, tensor.to(compute_dtype), alpha=task["ratio"], out=accumulator)
 
                         merged_state_dict[key] = accumulator.to(save_dtype)
 
@@ -287,14 +312,14 @@ if __name__ == "__main__":
         "--precision",
         type=str,
         default="float",
-        choices=["float", "fp16", "bf16"],
+        choices=["float", "fp16", "bf16", "fp8_e4m3", "fp8_e5m2"],
         help="Calculation precision during merge.",
     )
     parser.add_argument(
         "--saving_precision",
         type=str,
         default="bf16",
-        choices=["float", "fp16", "bf16"],
+        choices=["float", "fp16", "bf16", "fp8_e4m3", "fp8_e5m2"],
         help="Precision for saving the final model.",
     )
     parser.add_argument(
